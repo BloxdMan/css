@@ -20,6 +20,18 @@
     "group": "Layout:",
     "selector": ".Title",
     "type": "slider",
+    "label": "Size",
+    "property": "background-size",
+    "unit": "rem",
+    "min": 0,
+    "max": 30,
+    "step": 1
+  },
+
+  {
+    "group": "Layout:",
+    "selector": ".Title",
+    "type": "slider",
     "label": "Width",
     "property": "width",
     "unit": "rem",
