@@ -135,6 +135,14 @@ function buildControls(config) {
         }
         groups[groupName].addControl(element);
     });
+
+    // Sync once after we building all controls so checkbox toggles and color values match the loaded CSS.
+    syncControlsFromCSS();
+    allControls.forEach(item => {
+        if (item.type === "checkbox") {
+            updateToggle(item.control, item.input.checked, { syncValues: false });
+        }
+    });
 }
 
 function escapeRegExp(string) {
@@ -198,7 +206,8 @@ function parseOpacityFromColorValue(value) {
     const trimmed = (value || "").trim().replace(/\s*!important\s*$/i, "").trim();
     if (!trimmed) return 100;
 
-    const colorMatch = trimmed.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{3,4}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8})/i);
+    // FIX: Reordered {8} before {6} and {3,4}
+    const colorMatch = trimmed.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3,4})/i);
     const colorValue = colorMatch ? colorMatch[1] : trimmed;
 
     const rgbaMatch = colorValue.match(/^rgba?\(([^)]+)\)$/i);
@@ -233,13 +242,14 @@ function parseOpacityFromColorValue(value) {
 function buildColorWithOpacity(value, opacityPercent) {
     const num = Number(opacityPercent);
     const opacity = Math.max(
-    0,
-    Math.min(100, Number.isNaN(num) ? 100 : num)
+        0,
+        Math.min(100, Number.isNaN(num) ? 100 : num)
     );
     const alphaHex = Math.round((opacity / 100) * 255).toString(16).padStart(2, "0");
     const trimmed = (value || "").trim().replace(/\s*!important\s*$/i, "").trim();
 
-    const colorMatch = trimmed.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{3,4}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8})/i);
+    // FIX: Reordered {8} before {6} and {3,4}
+    const colorMatch = trimmed.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3,4})/i);
     const colorValue = colorMatch ? colorMatch[1] : trimmed;
 
     const rgbaMatch = colorValue.match(/^rgba?\(([^)]+)\)$/i);
@@ -356,7 +366,13 @@ function createColorOpacityControl(control, regex) {
 
     const match = editor.value.match(regex);
     const currentValue = match && match[1] ? match[1].trim() : "";
-    slider.value = parseOpacityFromColorValue(currentValue);
+    // determine initial opacity with a safe fallback
+    let initialOpacity = parseOpacityFromColorValue(currentValue);
+    if (typeof initialOpacity !== 'number' || Number.isNaN(initialOpacity)) {
+        initialOpacity = (control.defaultOpacity ?? control.default ?? 100);
+    }
+    initialOpacity = Math.max(0, Math.min(100, Number(initialOpacity)));
+    slider.value = initialOpacity;
 
     const valueLabel = document.createElement("span");
     valueLabel.textContent = `${slider.value}%`;
@@ -442,8 +458,7 @@ function createCheckbox(control) {
 
     input.checked = control.default ?? true;
 
-    updateToggle(control, input.checked);
-
+    // Initial update will be applied after all controls are built to preserve color picker values.
     input.addEventListener("change", () => {
         updateToggle(control, input.checked);
     });
@@ -458,7 +473,7 @@ function createCheckbox(control) {
     return wrapper;
 }
 
-function updateToggle(control, enabled) {
+function updateToggle(control, enabled, { syncValues = true } = {}) {
 
     const value = enabled ? control.enabled : control.disabled;
 
@@ -507,6 +522,10 @@ function updateToggle(control, enabled) {
         }
 
     });
+
+    if (syncValues) {
+        syncControlsFromCSS();
+    }
 
 }
 
@@ -640,10 +659,11 @@ function syncControlsFromCSS() {
         else if (type === 'color-opacity') {
     const match = editor.value.match(item.regex);
     if (match && match[1]) {
-        slider.value = parseOpacityFromColorValue(match[1]);
-        if (valueLabel) {
-            valueLabel.textContent = `${slider.value}%`;
-        }
+        let parsed = parseOpacityFromColorValue(match[1]);
+        if (typeof parsed !== 'number' || Number.isNaN(parsed)) parsed = (item.control.defaultOpacity ?? item.control.default ?? 100);
+        parsed = Math.max(0, Math.min(100, Number(parsed)));
+        slider.value = parsed;
+        if (valueLabel) valueLabel.textContent = `${slider.value}%`;
     }
 }
         else if (type === 'color-shadow') {
@@ -656,13 +676,19 @@ function syncControlsFromCSS() {
     }
 }
         else if (type === "checkbox") {
-    const valToMatch = control.value || ""; 
-    
-    const regex = new RegExp(
-        `${control.property}:\\s*${valToMatch.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`
-    );
+    const enabledValue = (control.enabled || "").trim();
+    const disabledValue = (control.disabled || "").trim();
+    const propertyPattern = `${escapeRegExp(control.property)}:\\s*`;
+    const enabledRegex = enabledValue ? new RegExp(`${propertyPattern}${escapeRegExp(enabledValue)}`, "i") : null;
+    const disabledRegex = disabledValue ? new RegExp(`${propertyPattern}${escapeRegExp(disabledValue)}`, "i") : null;
 
-    input.checked = regex.test(editor.value);
+    if (enabledRegex && enabledRegex.test(editor.value)) {
+        input.checked = true;
+    } else if (disabledRegex && disabledRegex.test(editor.value)) {
+        input.checked = false;
+    } else {
+        input.checked = control.default ?? true;
+    }
 }
         else if (type === 'gradientColor') {
             const selectorEscaped = control.selector.replace('.', '\\.');
