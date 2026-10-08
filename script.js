@@ -104,7 +104,7 @@ function buildControls(config) {
         } else if (control.type === "slider" || control.type === "color" || control.type === "gradientColor") {
             const selectorEscaped = escapeRegExp(control.selector || "");
             regex = new RegExp(`${selectorEscaped}\\s*\\{[^}]*${control.property}:\\s*([\\d\\.]+|#[0-9a-fA-F]{3,8})`);
-        } else if (control.type === "color-opacity" || control.type === "color-shadow") {
+        } else if (control.type === "color-opacity" || control.type === "color-shadow" || control.type === "gradient-opacity") {
             const selectorEscaped = escapeRegExp(control.selector || "");
             regex = new RegExp(`${selectorEscaped}\\s*\\{[^}]*${escapeRegExp(control.property)}:\\s*([^;]+)`);
         }
@@ -118,6 +118,8 @@ function buildControls(config) {
             element = createGradientColorPicker(control, regex);
         } else if (control.type === "color-opacity") {
             element = createColorOpacityControl(control, regex);
+        } else if (control.type === "gradient-opacity") {
+            element = createGradientOpacityControl(control, regex);
         } else if (control.type === "color-shadow") {
             element = createColorShadowControl(control, regex);
         } else if (control.type === "image") {
@@ -206,8 +208,7 @@ function parseOpacityFromColorValue(value) {
     const trimmed = (value || "").trim().replace(/\s*!important\s*$/i, "").trim();
     if (!trimmed) return 100;
 
-    // FIX: Reordered {8} before {6} and {3,4}
-    const colorMatch = trimmed.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3,4})/i);
+    const colorMatch = trimmed.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{4}|#[0-9a-fA-F]{3})/i);
     const colorValue = colorMatch ? colorMatch[1] : trimmed;
 
     const rgbaMatch = colorValue.match(/^rgba?\(([^)]+)\)$/i);
@@ -248,8 +249,7 @@ function buildColorWithOpacity(value, opacityPercent) {
     const alphaHex = Math.round((opacity / 100) * 255).toString(16).padStart(2, "0");
     const trimmed = (value || "").trim().replace(/\s*!important\s*$/i, "").trim();
 
-    // FIX: Reordered {8} before {6} and {3,4}
-    const colorMatch = trimmed.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3,4})/i);
+    const colorMatch = trimmed.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{4}|#[0-9a-fA-F]{3})/i);
     const colorValue = colorMatch ? colorMatch[1] : trimmed;
 
     const rgbaMatch = colorValue.match(/^rgba?\(([^)]+)\)$/i);
@@ -283,7 +283,7 @@ function updateOpacityInValue(value, opacityPercent) {
     const trimmed = (value || "").trim().replace(/\s*!important\s*$/i, "").trim();
     if (!trimmed || trimmed.toLowerCase() === "none") return trimmed;
 
-    const colorMatch = trimmed.match(/^(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{3,4}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8})$/i);
+    const colorMatch = trimmed.match(/^(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{4}|#[0-9a-fA-F]{3})$/i);
     if (!colorMatch) return trimmed;
 
     return buildColorWithOpacity(colorMatch[1], opacityPercent);
@@ -294,7 +294,7 @@ function updateOpacityInBoxShadowValue(value, opacityPercent) {
     if (!trimmed || trimmed.toLowerCase() === "none") return trimmed;
 
     return trimmed.split(",").map(part => part.trim()).filter(Boolean).map(part => {
-        const colorMatch = part.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{3,4}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8})\s*$/i);
+        const colorMatch = part.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{4}|#[0-9a-fA-F]{3})\s*$/i);
         if (!colorMatch) return part;
 
         const colorToken = colorMatch[1];
@@ -324,7 +324,7 @@ function getBoxShadowColorToken(value) {
     const shadowParts = trimmed.split(",").map(part => part.trim()).filter(Boolean);
 
     for (const shadowPart of shadowParts) {
-        const match = shadowPart.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{3,4}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8})\s*$/i);
+        const match = shadowPart.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{4}|#[0-9a-fA-F]{3})\s*$/i);
         if (match) return match[1];
     }
 
@@ -338,7 +338,7 @@ function replaceBoxShadowColorValue(value, newColor) {
     const shadowParts = trimmed.split(",").map(part => part.trim()).filter(Boolean);
 
     return shadowParts.map(part => {
-        const match = part.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{3,4}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{8})\s*$/i);
+        const match = part.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{4}|#[0-9a-fA-F]{3})\s*$/i);
         if (!match) return part;
 
         const oldColor = match[1];
@@ -402,6 +402,69 @@ function createColorOpacityControl(control, regex) {
     return wrapper;
 }
 
+function updateGradientOpacityValue(value, opacityPercent, index = 0) {
+    const trimmed = (value || "").trim().replace(/\s*!important\s*$/i, "").trim();
+    if (!trimmed) return trimmed;
+
+    const gradientColors = trimmed.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{4}|#[0-9a-fA-F]{3})/g) || [];
+    if (!gradientColors.length) return trimmed;
+
+    const colorIndex = Number.isInteger(index) ? index : 0;
+    const selectedColor = gradientColors[colorIndex] || gradientColors[0];
+    const nextColor = buildColorWithOpacity(selectedColor, opacityPercent);
+    return trimmed.replace(selectedColor, nextColor);
+}
+
+function createGradientOpacityControl(control, regex) {
+    const wrapper = document.createElement("div");
+    const label = document.createElement("label");
+    label.textContent = control.label;
+    wrapper.appendChild(label);
+
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = 0;
+    slider.max = 100;
+    slider.step = 1;
+
+    const match = editor.value.match(regex);
+    const currentValue = match && match[1] ? match[1].trim().replace(/\s*!important\s*$/i, "").trim() : "";
+    const gradientColors = currentValue.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{4}|#[0-9a-fA-F]{3})/g) || [];
+    const colorIndex = Number.isInteger(control.index) ? control.index : 0;
+    const initialColor = gradientColors[colorIndex] || gradientColors[0] || "#ffffff";
+    let initialOpacity = parseOpacityFromColorValue(initialColor);
+    if (typeof initialOpacity !== "number" || Number.isNaN(initialOpacity)) {
+        initialOpacity = (control.defaultOpacity ?? control.default ?? 100);
+    }
+    initialOpacity = Math.max(0, Math.min(100, Number(initialOpacity)));
+    slider.value = initialOpacity;
+
+    const valueLabel = document.createElement("span");
+    valueLabel.textContent = `${slider.value}%`;
+
+    slider.addEventListener("input", () => {
+        const match = editor.value.match(regex);
+        const currentValue = match && match[1] ? match[1].trim().replace(/\s*!important\s*$/i, "").trim() : "";
+        if (!currentValue) return;
+
+        const nextValue = updateGradientOpacityValue(currentValue, slider.value, control.index);
+        const propertyRegex = new RegExp(`(${escapeRegExp(control.selector)}\\s*\\{[^}]*?${escapeRegExp(control.property)}:\\s*)([^;]+?)(\\s*!important)?\\s*;`, "i");
+
+        editor.value = editor.value.replace(propertyRegex, (fullMatch, prefix, existingValue, importantFlag) => {
+            return `${prefix}${nextValue}${importantFlag || ""};`;
+        });
+        valueLabel.textContent = `${slider.value}%`;
+        liveStyle.textContent = editor.value;
+    });
+
+    allControls.push({ type: "gradient-opacity", control, slider, valueLabel, regex });
+
+    wrapper.appendChild(slider);
+    wrapper.appendChild(valueLabel);
+    controls.appendChild(wrapper);
+    return wrapper;
+}
+
 function createColorShadowControl(control, regex) {
     const wrapper = document.createElement("div");
     const label = document.createElement("label");
@@ -440,6 +503,63 @@ function createColorShadowControl(control, regex) {
     return wrapper;
 }
 
+function normalizeToggleEntries(control, enabled) {
+    const rawValue = enabled ? control.enabled : control.disabled;
+
+    if (rawValue === undefined || rawValue === null) {
+        return [];
+    }
+
+    if (typeof rawValue === "object") {
+        return Object.entries(rawValue).map(([property, value]) => ({
+            property,
+            value: String(value).trim()
+        }));
+    }
+
+    const valueString = String(rawValue).trim();
+    if (!valueString) {
+        return [];
+    }
+
+    if (valueString.includes(":")) {
+        return valueString.split(";")
+            .map(entry => entry.trim())
+            .filter(Boolean)
+            .map(entry => {
+                const separatorIndex = entry.indexOf(":");
+                if (separatorIndex === -1) {
+                    return { property: control.property, value: entry };
+                }
+
+                return {
+                    property: entry.slice(0, separatorIndex).trim(),
+                    value: entry.slice(separatorIndex + 1).trim()
+                };
+            });
+    }
+
+    return [{ property: control.property, value: valueString }];
+}
+
+function toggleDeclarationsMatch(control, enabled, cssText = editor.value) {
+    const declarations = normalizeToggleEntries(control, enabled);
+
+    if (!declarations.length) {
+        return false;
+    }
+
+    return declarations.every(({ property, value }) => {
+        const normalizedValue = value.replace(/\s*!important\s*$/i, "").trim();
+        const declarationRegex = new RegExp(
+            `${escapeRegExp(property)}\\s*:\\s*${escapeRegExp(normalizedValue)}(?:\\s*!important)?\\s*;?`,
+            "i"
+        );
+
+        return declarationRegex.test(cssText);
+    });
+}
+
 function createCheckbox(control) {
 
     const wrapper = document.createElement("label");
@@ -475,7 +595,11 @@ function createCheckbox(control) {
 
 function updateToggle(control, enabled, { syncValues = true } = {}) {
 
-    const value = enabled ? control.enabled : control.disabled;
+    const declarations = normalizeToggleEntries(control, enabled);
+
+    if (!declarations.length) {
+        return;
+    }
 
     const selectorRegex = new RegExp(
         `(${control.selector.replace(".", "\\.")}\\s*\\{)([\\s\\S]*?)(\\})`
@@ -483,24 +607,25 @@ function updateToggle(control, enabled, { syncValues = true } = {}) {
 
     editor.value = editor.value.replace(selectorRegex, (match, start, body, end) => {
 
-        const propertyRegex = new RegExp(
-            `${control.property}:\\s*[^;]+;`
-        );
+        let updatedBody = body;
 
-        if (propertyRegex.test(body)) {
-
-            body = body.replace(
-                propertyRegex,
-                `${control.property}: ${value} !important;`
+        declarations.forEach(({ property, value }) => {
+            const propertyRegex = new RegExp(
+                `${escapeRegExp(property)}\\s*:\\s*[^;]+;`,
+                "i"
             );
 
-        } else {
+            if (propertyRegex.test(updatedBody)) {
+                updatedBody = updatedBody.replace(
+                    propertyRegex,
+                    `${property}: ${value} !important;`
+                );
+            } else {
+                updatedBody += `\n    ${property}: ${value} !important;`;
+            }
+        });
 
-            body += `\n    ${control.property}: ${value} !important;`;
-
-        }
-
-        return start + body + end;
+        return start + updatedBody + end;
 
     });
 
@@ -666,6 +791,19 @@ function syncControlsFromCSS() {
         if (valueLabel) valueLabel.textContent = `${slider.value}%`;
     }
 }
+        else if (type === 'gradient-opacity') {
+    const match = editor.value.match(item.regex);
+    if (match && match[1]) {
+        const normalized = match[1].trim().replace(/\s*!important\s*$/i, "").trim();
+        const colors = (normalized.match(/(rgba?\([^)]*\)|hsla?\([^)]*\)|#[0-9a-fA-F]{8}|#[0-9a-fA-F]{6}|#[0-9a-fA-F]{4}|#[0-9a-fA-F]{3})/g) || []);
+        const targetColor = colors[Number.isInteger(item.control.index) ? item.control.index : 0] || colors[0] || '#ffffff';
+        let parsed = parseOpacityFromColorValue(targetColor);
+        if (typeof parsed !== 'number' || Number.isNaN(parsed)) parsed = (item.control.defaultOpacity ?? item.control.default ?? 100);
+        parsed = Math.max(0, Math.min(100, Number(parsed)));
+        slider.value = parsed;
+        if (valueLabel) valueLabel.textContent = `${slider.value}%`;
+    }
+}
         else if (type === 'color-shadow') {
     const match = editor.value.match(item.regex);
     if (match && match[1]) {
@@ -676,15 +814,9 @@ function syncControlsFromCSS() {
     }
 }
         else if (type === "checkbox") {
-    const enabledValue = (control.enabled || "").trim();
-    const disabledValue = (control.disabled || "").trim();
-    const propertyPattern = `${escapeRegExp(control.property)}:\\s*`;
-    const enabledRegex = enabledValue ? new RegExp(`${propertyPattern}${escapeRegExp(enabledValue)}`, "i") : null;
-    const disabledRegex = disabledValue ? new RegExp(`${propertyPattern}${escapeRegExp(disabledValue)}`, "i") : null;
-
-    if (enabledRegex && enabledRegex.test(editor.value)) {
+    if (toggleDeclarationsMatch(control, true, editor.value)) {
         input.checked = true;
-    } else if (disabledRegex && disabledRegex.test(editor.value)) {
+    } else if (toggleDeclarationsMatch(control, false, editor.value)) {
         input.checked = false;
     } else {
         input.checked = control.default ?? true;
