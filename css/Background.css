@@ -12,3 +12,7 @@
     background-image: none !important;
     filter: none !important;
 }
+
+.HomePageInnerRight {
+    background-color: transparent !important;
+}

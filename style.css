@@ -327,6 +327,24 @@ textarea {
     cursor: pointer;
 }
 
+.window.recommended {
+    position: relative;
+}
+
+.recommended-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.3rem 0.55rem;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ffb347, #ff7a18);
+    color: #fff;
+    font-family: Arial, sans-serif;
+    font-size: 0.65rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
 .picture {
     height: 100%;
     width: 100%;
